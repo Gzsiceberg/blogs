@@ -3,9 +3,24 @@ const { Umzug, SequelizeStorage } = require('umzug')
 const sequelize = require('../util/db')
 const Blog = require('./blog')
 const User = require('./user')
+const ReadingList = require('./readinglist')
 
 User.hasMany(Blog, { foreignKey: 'userId' })
 Blog.belongsTo(User, { foreignKey: 'userId' })
+User.belongsToMany(Blog, {
+  through: ReadingList,
+  as: 'readings',
+  foreignKey: 'userId',
+  otherKey: 'blogId'
+})
+Blog.belongsToMany(User, {
+  through: ReadingList,
+  as: 'readers',
+  foreignKey: 'blogId',
+  otherKey: 'userId'
+})
+ReadingList.belongsTo(User, { foreignKey: 'userId' })
+ReadingList.belongsTo(Blog, { foreignKey: 'blogId' })
 
 const runMigrations = async () => {
   const migrator = new Umzug({
@@ -44,5 +59,6 @@ module.exports = {
   connectToDatabase,
   sequelize,
   Blog,
-  User
+  User,
+  ReadingList
 }

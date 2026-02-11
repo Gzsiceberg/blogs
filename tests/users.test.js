@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const request = require('supertest')
 
 const app = require('../index')
-const { connectToDatabase, sequelize, User, Blog } = require('../models')
+const { connectToDatabase, sequelize, User, Blog, ReadingList } = require('../models')
 
 test.before(async () => {
   await connectToDatabase()
@@ -97,6 +97,127 @@ test('GET /api/users includes blogs added by each user', async () => {
     assert.equal(fetchedBlog.title, 'Blog from user listing test')
   } finally {
     await Blog.destroy({ where: { id: blog.id } })
+    await User.destroy({ where: { id: user.id } })
+  }
+})
+
+test('GET /api/users/:id returns readings with join table metadata', async () => {
+  const unique = Date.now()
+  const user = await User.create({
+    name: 'Reader User',
+    username: `reader_user_${unique}`
+  })
+
+  const authoredBlog = await Blog.create({
+    author: 'Reader User',
+    url: `https://example.com/authored-${unique}`,
+    title: 'Authored blog',
+    likes: 2,
+    userId: user.id
+  })
+
+  const readingBlog = await Blog.create({
+    author: 'Another Author',
+    url: `https://example.com/reading-${unique}`,
+    title: 'Reading list blog',
+    likes: 10
+  })
+
+  const readingEntry = await ReadingList.create({
+    userId: user.id,
+    blogId: readingBlog.id
+  })
+
+  try {
+    const response = await request(app).get(`/api/users/${user.id}`)
+
+    assert.equal(response.status, 200)
+    assert.equal(response.body.id, user.id)
+
+    assert.ok(Array.isArray(response.body.blogs))
+    assert.ok(response.body.blogs.find((blog) => blog.id === authoredBlog.id))
+
+    assert.ok(Array.isArray(response.body.readings))
+    const reading = response.body.readings.find((entry) => entry.id === readingBlog.id)
+    assert.ok(reading)
+    assert.ok(Array.isArray(reading.readinglists))
+    assert.equal(reading.readinglists.length, 1)
+    assert.equal(reading.readinglists[0].id, readingEntry.id)
+    assert.equal(reading.readinglists[0].read, false)
+  } finally {
+    await ReadingList.destroy({ where: { id: readingEntry.id } })
+    await Blog.destroy({ where: { id: authoredBlog.id } })
+    await Blog.destroy({ where: { id: readingBlog.id } })
+    await User.destroy({ where: { id: user.id } })
+  }
+})
+
+test('GET /api/users/:id filters readings by read query parameter', async () => {
+  const unique = Date.now()
+  const user = await User.create({
+    name: 'Reader Filter User',
+    username: `reader_filter_${unique}`
+  })
+
+  const unreadBlog = await Blog.create({
+    author: 'Unread Author',
+    url: `https://example.com/unread-${unique}`,
+    title: 'Unread blog',
+    likes: 0
+  })
+
+  const readBlog = await Blog.create({
+    author: 'Read Author',
+    url: `https://example.com/read-${unique}`,
+    title: 'Read blog',
+    likes: 0
+  })
+
+  const unreadEntry = await ReadingList.create({
+    userId: user.id,
+    blogId: unreadBlog.id,
+    read: false
+  })
+
+  const readEntry = await ReadingList.create({
+    userId: user.id,
+    blogId: readBlog.id,
+    read: true
+  })
+
+  try {
+    const readResponse = await request(app).get(`/api/users/${user.id}?read=true`)
+    assert.equal(readResponse.status, 200)
+    assert.equal(readResponse.body.readings.length, 1)
+    assert.equal(readResponse.body.readings[0].id, readBlog.id)
+    assert.equal(readResponse.body.readings[0].readinglists[0].id, readEntry.id)
+
+    const unreadResponse = await request(app).get(`/api/users/${user.id}?read=false`)
+    assert.equal(unreadResponse.status, 200)
+    assert.equal(unreadResponse.body.readings.length, 1)
+    assert.equal(unreadResponse.body.readings[0].id, unreadBlog.id)
+    assert.equal(unreadResponse.body.readings[0].readinglists[0].id, unreadEntry.id)
+  } finally {
+    await ReadingList.destroy({ where: { id: unreadEntry.id } })
+    await ReadingList.destroy({ where: { id: readEntry.id } })
+    await Blog.destroy({ where: { id: unreadBlog.id } })
+    await Blog.destroy({ where: { id: readBlog.id } })
+    await User.destroy({ where: { id: user.id } })
+  }
+})
+
+test('GET /api/users/:id returns 400 for invalid read query', async () => {
+  const unique = Date.now()
+  const user = await User.create({
+    name: 'Reader Invalid Query',
+    username: `reader_invalid_${unique}`
+  })
+
+  try {
+    const response = await request(app).get(`/api/users/${user.id}?read=maybe`)
+    assert.equal(response.status, 400)
+    assert.match(response.body.error, /read query must be true or false/i)
+  } finally {
     await User.destroy({ where: { id: user.id } })
   }
 })

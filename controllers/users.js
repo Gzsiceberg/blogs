@@ -1,5 +1,5 @@
 const usersRouter = require('express').Router()
-const { User, Blog } = require('../models')
+const { User, Blog, ReadingList } = require('../models')
 
 usersRouter.post('/', async (req, res, next) => {
   const { name, username } = req.body
@@ -54,6 +54,74 @@ usersRouter.put('/:username', async (req, res, next) => {
     res.json(user)
   } catch (error) {
     next(error)
+  }
+})
+
+usersRouter.get('/:id', async (req, res, next) => {
+  const id = Number(req.params.id)
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'id must be a positive integer' })
+  }
+
+  const readQuery = req.query.read
+  let readFilter
+
+  if (readQuery !== undefined) {
+    if (readQuery === 'true') {
+      readFilter = true
+    } else if (readQuery === 'false') {
+      readFilter = false
+    } else {
+      return res.status(400).json({ error: 'read query must be true or false' })
+    }
+  }
+
+  try {
+    const user = await User.findByPk(id, {
+      include: {
+        model: Blog,
+        attributes: ['id', 'author', 'url', 'title', 'likes', 'year']
+      }
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'user not found' })
+    }
+
+    const readingWhere = { userId: id }
+    if (readFilter !== undefined) {
+      readingWhere.read = readFilter
+    }
+
+    const readingEntries = await ReadingList.findAll({
+      where: readingWhere,
+      include: {
+        model: Blog,
+        attributes: ['id', 'url', 'title', 'author', 'likes', 'year']
+      },
+      order: [['id', 'ASC']]
+    })
+
+    const readings = readingEntries
+      .filter((entry) => entry.blog)
+      .map((entry) => ({
+        ...entry.blog.toJSON(),
+        readinglists: [
+          {
+            read: entry.read,
+            id: entry.id
+          }
+        ]
+      }))
+
+    const userJson = user.toJSON()
+    return res.json({
+      ...userJson,
+      readings
+    })
+  } catch (error) {
+    return next(error)
   }
 })
 
