@@ -18,20 +18,34 @@ Blog.init(
       type: DataTypes.TEXT,
       allowNull: false,
       validate: {
-        notEmpty: true
+        notEmpty: true,
+        notBlank(value) {
+          if (!value || !value.trim()) {
+            throw new Error('url cannot be empty')
+          }
+        }
       }
     },
     title: {
       type: DataTypes.TEXT,
       allowNull: false,
       validate: {
-        notEmpty: true
+        notEmpty: true,
+        notBlank(value) {
+          if (!value || !value.trim()) {
+            throw new Error('title cannot be empty')
+          }
+        }
       }
     },
     likes: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 0
+      defaultValue: 0,
+      validate: {
+        isInt: true,
+        min: 0
+      }
     }
   },
   {

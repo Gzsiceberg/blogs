@@ -12,45 +12,29 @@ blogsRouter.get('/', async (_req, res) => {
   }
 })
 
-blogsRouter.post('/', async (req, res) => {
+blogsRouter.post('/', async (req, res, next) => {
   const { author = null, url, title, likes = 0 } = req.body
-
-  if (!url || !String(url).trim()) {
-    return res.status(400).json({ error: 'url is required' })
-  }
-
-  if (!title || !String(title).trim()) {
-    return res.status(400).json({ error: 'title is required' })
-  }
-
-  if (!Number.isInteger(likes) || likes < 0) {
-    return res.status(400).json({ error: 'likes must be a non-negative integer' })
-  }
 
   try {
     const createdBlog = await Blog.create({
-      author,
-      url: String(url).trim(),
-      title: String(title).trim(),
+      author: author || null,
+      url,
+      title,
       likes
     })
 
     res.status(201).json(createdBlog)
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    next(error)
   }
 })
 
-blogsRouter.put('/:id', async (req, res) => {
+blogsRouter.put('/:id', async (req, res, next) => {
   const id = Number(req.params.id)
   const { likes } = req.body
 
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'id must be a positive integer' })
-  }
-
-  if (!Number.isInteger(likes) || likes < 0) {
-    return res.status(400).json({ error: 'likes must be a non-negative integer' })
   }
 
   try {
@@ -65,7 +49,7 @@ blogsRouter.put('/:id', async (req, res) => {
 
     res.json(blog)
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    next(error)
   }
 })
 
