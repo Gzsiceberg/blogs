@@ -47,6 +47,8 @@ test('PUT /api/users/:username updates username and updated_at', async () => {
   const beforeUpdatedAt = new Date(user.updated_at).getTime()
 
   try {
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
     const response = await request(app)
       .put(`/api/users/${originalUsername}`)
       .send({ username: newUsername })
@@ -59,7 +61,7 @@ test('PUT /api/users/:username updates username and updated_at', async () => {
     assert.equal(response.body.password_hash, undefined)
 
     const afterUpdatedAt = new Date(response.body.updated_at).getTime()
-    assert.ok(afterUpdatedAt >= beforeUpdatedAt)
+    assert.ok(afterUpdatedAt > beforeUpdatedAt)
   } finally {
     await User.destroy({ where: { username: originalUsername } })
     await User.destroy({ where: { username: newUsername } })

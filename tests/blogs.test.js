@@ -11,6 +11,10 @@ const createUserAndLogin = async (username, name) => {
     .post('/api/login')
     .send({ username, password: 'secret' })
 
+  assert.equal(loginResponse.status, 200)
+  assert.equal(typeof loginResponse.body.token, 'string')
+  assert.ok(loginResponse.body.token.length > 0)
+
   return loginResponse.body.token
 }
 
