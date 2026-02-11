@@ -140,10 +140,8 @@ test('GET /api/users/:id returns readings with join table metadata', async () =>
     assert.ok(Array.isArray(response.body.readings))
     const reading = response.body.readings.find((entry) => entry.id === readingBlog.id)
     assert.ok(reading)
-    assert.ok(Array.isArray(reading.readinglists))
-    assert.equal(reading.readinglists.length, 1)
-    assert.equal(reading.readinglists[0].id, readingEntry.id)
-    assert.equal(reading.readinglists[0].read, false)
+    assert.equal(reading.readinglist.id, readingEntry.id)
+    assert.equal(reading.readinglist.read, false)
   } finally {
     await ReadingList.destroy({ where: { id: readingEntry.id } })
     await Blog.destroy({ where: { id: authoredBlog.id } })
@@ -190,13 +188,13 @@ test('GET /api/users/:id filters readings by read query parameter', async () => 
     assert.equal(readResponse.status, 200)
     assert.equal(readResponse.body.readings.length, 1)
     assert.equal(readResponse.body.readings[0].id, readBlog.id)
-    assert.equal(readResponse.body.readings[0].readinglists[0].id, readEntry.id)
+    assert.equal(readResponse.body.readings[0].readinglist.id, readEntry.id)
 
     const unreadResponse = await request(app).get(`/api/users/${user.id}?read=false`)
     assert.equal(unreadResponse.status, 200)
     assert.equal(unreadResponse.body.readings.length, 1)
     assert.equal(unreadResponse.body.readings[0].id, unreadBlog.id)
-    assert.equal(unreadResponse.body.readings[0].readinglists[0].id, unreadEntry.id)
+    assert.equal(unreadResponse.body.readings[0].readinglist.id, unreadEntry.id)
   } finally {
     await ReadingList.destroy({ where: { id: unreadEntry.id } })
     await ReadingList.destroy({ where: { id: readEntry.id } })
