@@ -47,6 +47,22 @@ Blog.init(
         min: 0
       }
     },
+    year: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: () => new Date().getFullYear(),
+      validate: {
+        isInt: {
+          msg: 'year must be an integer'
+        },
+        isValidYear(value) {
+          const currentYear = new Date().getFullYear()
+          if (value < 1991 || value > currentYear) {
+            throw new Error(`year must be between 1991 and ${currentYear}`)
+          }
+        }
+      }
+    },
     userId: {
       type: DataTypes.INTEGER,
       allowNull: true,

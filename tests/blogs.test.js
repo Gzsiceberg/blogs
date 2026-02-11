@@ -48,6 +48,30 @@ test('POST /api/blogs returns 400 via error middleware for invalid url', async (
   }
 })
 
+test('POST /api/blogs returns 400 with clear message for invalid year', async () => {
+  const username = `blog_year_user_${Date.now()}`
+  const token = await createUserAndLogin(username, 'Blog Year User')
+  const invalidYear = new Date().getFullYear() + 1
+
+  try {
+    const response = await request(app)
+      .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        author: 'Test Author',
+        url: 'https://example.com/invalid-year',
+        title: 'Invalid year blog',
+        likes: 0,
+        year: invalidYear
+      })
+
+    assert.equal(response.status, 400)
+    assert.match(response.body.error, /year must be between 1991 and/i)
+  } finally {
+    await User.destroy({ where: { username } })
+  }
+})
+
 test('PUT /api/blogs/:id returns 400 via error middleware for invalid likes', async () => {
   const blog = await Blog.create({
     author: 'Test Author',

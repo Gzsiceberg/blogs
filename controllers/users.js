@@ -21,7 +21,7 @@ usersRouter.get('/', async (_req, res, next) => {
     const users = await User.findAll({
       include: {
         model: Blog,
-        attributes: ['id', 'author', 'url', 'title', 'likes']
+        attributes: ['id', 'author', 'url', 'title', 'likes', 'year']
       },
       order: [['id', 'ASC']]
     })

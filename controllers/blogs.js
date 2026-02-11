@@ -30,7 +30,7 @@ blogsRouter.get('/', async (req, res) => {
 })
 
 blogsRouter.post('/', async (req, res, next) => {
-  const { author = null, url, title, likes = 0 } = req.body
+  const { author = null, url, title, likes = 0, year } = req.body
 
   if (!req.token) {
     return res.status(401).json({ error: 'token missing' })
@@ -49,6 +49,7 @@ blogsRouter.post('/', async (req, res, next) => {
       url,
       title,
       likes,
+      year,
       userId: user.id
     })
 
