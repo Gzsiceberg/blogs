@@ -102,30 +102,39 @@ test('POST /api/blogs links new blog to logged-in user', async () => {
   }
 })
 
-test('GET /api/blogs filters by title with case-insensitive search', async () => {
-  const matchingBlog = await Blog.create({
+test('GET /api/blogs filters by title or author with case-insensitive search', async () => {
+  const titleMatchBlog = await Blog.create({
     author: 'Search Author',
-    url: `https://example.com/react-${Date.now()}`,
-    title: 'Learning React Patterns',
+    url: `https://example.com/jami-title-${Date.now()}`,
+    title: 'Learning Jami Patterns',
     likes: 2
   })
 
+  const authorMatchBlog = await Blog.create({
+    author: 'Jami Dev',
+    url: `https://example.com/jami-author-${Date.now()}`,
+    title: 'Frontend Testing Notes',
+    likes: 3
+  })
+
   const nonMatchingBlog = await Blog.create({
-    author: 'Search Author',
-    url: `https://example.com/vue-${Date.now()}`,
+    author: 'Another Author',
+    url: `https://example.com/non-jami-${Date.now()}`,
     title: 'Vue Basics',
     likes: 1
   })
 
   try {
-    const response = await request(app).get('/api/blogs?search=react')
+    const response = await request(app).get('/api/blogs?search=jami')
 
     assert.equal(response.status, 200)
     const returnedIds = response.body.map((blog) => blog.id)
-    assert.ok(returnedIds.includes(matchingBlog.id))
+    assert.ok(returnedIds.includes(titleMatchBlog.id))
+    assert.ok(returnedIds.includes(authorMatchBlog.id))
     assert.ok(!returnedIds.includes(nonMatchingBlog.id))
   } finally {
-    await Blog.destroy({ where: { id: matchingBlog.id } })
+    await Blog.destroy({ where: { id: titleMatchBlog.id } })
+    await Blog.destroy({ where: { id: authorMatchBlog.id } })
     await Blog.destroy({ where: { id: nonMatchingBlog.id } })
   }
 })

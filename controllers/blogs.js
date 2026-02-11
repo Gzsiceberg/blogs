@@ -5,7 +5,14 @@ const { verifyToken } = require('../util/token')
 
 blogsRouter.get('/', async (req, res) => {
   const search = typeof req.query.search === 'string' ? req.query.search.trim() : ''
-  const where = search ? { title: { [Op.iLike]: `%${search}%` } } : undefined
+  const where = search
+    ? {
+        [Op.or]: [
+          { title: { [Op.iLike]: `%${search}%` } },
+          { author: { [Op.iLike]: `%${search}%` } }
+        ]
+      }
+    : undefined
 
   try {
     const blogs = await Blog.findAll({
