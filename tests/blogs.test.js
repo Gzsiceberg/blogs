@@ -139,6 +139,60 @@ test('GET /api/blogs filters by title or author with case-insensitive search', a
   }
 })
 
+test('GET /api/authors returns aggregated author stats ordered by likes', async () => {
+  const unique = Date.now()
+  const topAuthor = `author_top_${unique}`
+  const secondAuthor = `author_second_${unique}`
+
+  const topBlogA = await Blog.create({
+    author: topAuthor,
+    url: `https://example.com/${unique}-top-a`,
+    title: 'Top author first article',
+    likes: 700000
+  })
+
+  const topBlogB = await Blog.create({
+    author: topAuthor,
+    url: `https://example.com/${unique}-top-b`,
+    title: 'Top author second article',
+    likes: 600000
+  })
+
+  const secondBlog = await Blog.create({
+    author: secondAuthor,
+    url: `https://example.com/${unique}-second`,
+    title: 'Second author article',
+    likes: 400000
+  })
+
+  try {
+    const response = await request(app).get('/api/authors')
+
+    assert.equal(response.status, 200)
+    assert.ok(Array.isArray(response.body))
+
+    const topAuthorStats = response.body.find((entry) => entry.author === topAuthor)
+    const secondAuthorStats = response.body.find((entry) => entry.author === secondAuthor)
+
+    assert.ok(topAuthorStats)
+    assert.ok(secondAuthorStats)
+    assert.equal(Number(topAuthorStats.articles), 2)
+    assert.equal(Number(topAuthorStats.likes), 1300000)
+    assert.equal(Number(secondAuthorStats.articles), 1)
+    assert.equal(Number(secondAuthorStats.likes), 400000)
+
+    const topIndex = response.body.findIndex((entry) => entry.author === topAuthor)
+    const secondIndex = response.body.findIndex((entry) => entry.author === secondAuthor)
+    assert.ok(topIndex >= 0)
+    assert.ok(secondIndex >= 0)
+    assert.ok(topIndex < secondIndex)
+  } finally {
+    await Blog.destroy({ where: { id: topBlogA.id } })
+    await Blog.destroy({ where: { id: topBlogB.id } })
+    await Blog.destroy({ where: { id: secondBlog.id } })
+  }
+})
+
 test('POST /api/blogs fails without token', async () => {
   const response = await request(app)
     .post('/api/blogs')
