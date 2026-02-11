@@ -41,6 +41,34 @@ blogsRouter.post('/', async (req, res) => {
   }
 })
 
+blogsRouter.put('/:id', async (req, res) => {
+  const id = Number(req.params.id)
+  const { likes } = req.body
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'id must be a positive integer' })
+  }
+
+  if (!Number.isInteger(likes) || likes < 0) {
+    return res.status(400).json({ error: 'likes must be a non-negative integer' })
+  }
+
+  try {
+    const blog = await Blog.findByPk(id)
+
+    if (!blog) {
+      return res.status(404).json({ error: 'blog not found' })
+    }
+
+    blog.likes = likes
+    await blog.save()
+
+    res.json(blog)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 blogsRouter.delete('/:id', async (req, res) => {
   const id = Number(req.params.id)
 
