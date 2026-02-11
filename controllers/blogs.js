@@ -1,7 +1,7 @@
 const blogsRouter = require('express').Router()
 const { Blog, User } = require('../models')
 const { Op } = require('sequelize')
-const { verifyToken } = require('../util/token')
+const { requireAuth } = require('../util/middleware')
 
 blogsRouter.get('/', async (req, res) => {
   const search = typeof req.query.search === 'string' ? req.query.search.trim() : ''
@@ -29,28 +29,17 @@ blogsRouter.get('/', async (req, res) => {
   }
 })
 
-blogsRouter.post('/', async (req, res, next) => {
+blogsRouter.post('/', requireAuth, async (req, res, next) => {
   const { author = null, url, title, likes = 0, year } = req.body
 
-  if (!req.token) {
-    return res.status(401).json({ error: 'token missing' })
-  }
-
   try {
-    const decodedToken = verifyToken(req.token)
-    const user = await User.findByPk(decodedToken.id)
-
-    if (!user) {
-      return res.status(401).json({ error: 'user not found' })
-    }
-
     const createdBlog = await Blog.create({
       author: author || null,
       url,
       title,
       likes,
       year,
-      userId: user.id
+      userId: req.user.id
     })
 
     res.status(201).json(createdBlog)
@@ -83,26 +72,21 @@ blogsRouter.put('/:id', async (req, res, next) => {
   }
 })
 
-blogsRouter.delete('/:id', async (req, res, next) => {
+blogsRouter.delete('/:id', requireAuth, async (req, res, next) => {
   const id = Number(req.params.id)
 
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'id must be a positive integer' })
   }
 
-  if (!req.token) {
-    return res.status(401).json({ error: 'token missing' })
-  }
-
   try {
-    const decodedToken = verifyToken(req.token)
     const blog = await Blog.findByPk(id)
 
     if (!blog) {
       return res.status(404).json({ error: 'blog not found' })
     }
 
-    if (blog.userId !== decodedToken.id) {
+    if (blog.userId !== req.user.id) {
       return res.status(403).json({ error: 'only the creator can delete a blog' })
     }
 

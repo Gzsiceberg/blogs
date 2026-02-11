@@ -1,23 +1,17 @@
 const readingListsRouter = require('express').Router()
 const { UniqueConstraintError } = require('sequelize')
 const { ReadingList, Blog, User } = require('../models')
-const { verifyToken } = require('../util/token')
+const { requireAuth } = require('../util/middleware')
 
-readingListsRouter.post('/', async (req, res, next) => {
+readingListsRouter.post('/', requireAuth, async (req, res, next) => {
   const { blogId, userId } = req.body
-
-  if (!req.token) {
-    return res.status(401).json({ error: 'token missing' })
-  }
 
   if (!Number.isInteger(blogId) || !Number.isInteger(userId)) {
     return res.status(400).json({ error: 'blogId and userId must be integers' })
   }
 
   try {
-    const decodedToken = verifyToken(req.token)
-
-    if (decodedToken.id !== userId) {
+    if (req.user.id !== userId) {
       return res.status(403).json({ error: 'forbidden' })
     }
 
@@ -45,7 +39,7 @@ readingListsRouter.post('/', async (req, res, next) => {
   }
 })
 
-readingListsRouter.put('/:id', async (req, res, next) => {
+readingListsRouter.put('/:id', requireAuth, async (req, res, next) => {
   const id = Number(req.params.id)
   const { read } = req.body
 
@@ -53,23 +47,18 @@ readingListsRouter.put('/:id', async (req, res, next) => {
     return res.status(400).json({ error: 'id must be a positive integer' })
   }
 
-  if (!req.token) {
-    return res.status(401).json({ error: 'token missing' })
-  }
-
   if (typeof read !== 'boolean') {
     return res.status(400).json({ error: 'read must be a boolean' })
   }
 
   try {
-    const decodedToken = verifyToken(req.token)
     const readingListEntry = await ReadingList.findByPk(id)
 
     if (!readingListEntry) {
       return res.status(404).json({ error: 'reading list entry not found' })
     }
 
-    if (readingListEntry.userId !== decodedToken.id) {
+    if (readingListEntry.userId !== req.user.id) {
       return res.status(403).json({ error: 'forbidden' })
     }
 

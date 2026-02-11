@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken')
 const loginRouter = require('express').Router()
-const { User } = require('../models')
-const { SECRET } = require('../util/config')
+const { Op } = require('sequelize')
+const { User, Session } = require('../models')
+const { signToken, verifyToken } = require('../util/token')
 
 loginRouter.post('/', async (req, res, next) => {
   const { username, password } = req.body
@@ -19,12 +19,32 @@ loginRouter.post('/', async (req, res, next) => {
       return res.status(401).json({ error: 'invalid username or password' })
     }
 
+    if (user.disabled) {
+      return res.status(401).json({ error: 'invalid username or password' })
+    }
+
     const userForToken = {
       id: user.id,
       username: user.username
     }
 
-    const token = jwt.sign(userForToken, SECRET)
+    const token = signToken(userForToken)
+    const decodedToken = verifyToken(token)
+
+    await Session.destroy({
+      where: {
+        userId: user.id,
+        expiresAt: {
+          [Op.lte]: new Date()
+        }
+      }
+    })
+
+    await Session.create({
+      userId: user.id,
+      token,
+      expiresAt: new Date(decodedToken.exp * 1000)
+    })
 
     return res.status(200).json({
       token,

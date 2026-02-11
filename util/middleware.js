@@ -1,4 +1,6 @@
 const { ValidationError, DatabaseError } = require('sequelize')
+const { verifyToken } = require('./token')
+const { Session, User } = require('../models')
 
 const tokenExtractor = (req, _res, next) => {
   const authorization = req.get('authorization')
@@ -8,6 +10,41 @@ const tokenExtractor = (req, _res, next) => {
     req.token = null
   }
   next()
+}
+
+const requireAuth = async (req, res, next) => {
+  if (!req.token) {
+    return res.status(401).json({ error: 'token missing' })
+  }
+
+  try {
+    const decodedToken = verifyToken(req.token)
+    const session = await Session.findOne({
+      where: { token: req.token }
+    })
+
+    if (!session) {
+      return res.status(401).json({ error: 'token invalid' })
+    }
+
+    if (session.userId !== decodedToken.id || session.expiresAt <= new Date()) {
+      await session.destroy()
+      return res.status(401).json({ error: 'token invalid' })
+    }
+
+    const user = await User.findByPk(decodedToken.id)
+
+    if (!user || user.disabled) {
+      return res.status(401).json({ error: 'token invalid' })
+    }
+
+    req.decodedToken = decodedToken
+    req.session = session
+    req.user = user
+    return next()
+  } catch (error) {
+    return next(error)
+  }
 }
 
 const errorHandler = (error, _req, res, _next) => {
@@ -30,5 +67,6 @@ const errorHandler = (error, _req, res, _next) => {
 
 module.exports = {
   tokenExtractor,
+  requireAuth,
   errorHandler
 }
