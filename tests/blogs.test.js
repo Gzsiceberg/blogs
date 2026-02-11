@@ -102,6 +102,34 @@ test('POST /api/blogs links new blog to logged-in user', async () => {
   }
 })
 
+test('GET /api/blogs filters by title with case-insensitive search', async () => {
+  const matchingBlog = await Blog.create({
+    author: 'Search Author',
+    url: `https://example.com/react-${Date.now()}`,
+    title: 'Learning React Patterns',
+    likes: 2
+  })
+
+  const nonMatchingBlog = await Blog.create({
+    author: 'Search Author',
+    url: `https://example.com/vue-${Date.now()}`,
+    title: 'Vue Basics',
+    likes: 1
+  })
+
+  try {
+    const response = await request(app).get('/api/blogs?search=react')
+
+    assert.equal(response.status, 200)
+    const returnedIds = response.body.map((blog) => blog.id)
+    assert.ok(returnedIds.includes(matchingBlog.id))
+    assert.ok(!returnedIds.includes(nonMatchingBlog.id))
+  } finally {
+    await Blog.destroy({ where: { id: matchingBlog.id } })
+    await Blog.destroy({ where: { id: nonMatchingBlog.id } })
+  }
+})
+
 test('POST /api/blogs fails without token', async () => {
   const response = await request(app)
     .post('/api/blogs')
