@@ -1,5 +1,6 @@
 const sequelize = require('../util/db')
 const Blog = require('./blog')
+const User = require('./user')
 
 const connectToDatabase = async () => {
   await sequelize.authenticate()
@@ -9,5 +10,6 @@ const connectToDatabase = async () => {
 module.exports = {
   connectToDatabase,
   sequelize,
-  Blog
+  Blog,
+  User
 }
