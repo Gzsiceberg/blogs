@@ -117,3 +117,58 @@ test('POST /api/blogs fails without token', async () => {
   assert.equal(response.status, 401)
   assert.match(response.body.error, /token missing/i)
 })
+
+test('DELETE /api/blogs/:id allows only the creator to delete', async () => {
+  const ownerUsername = `owner_${Date.now()}`
+  const otherUsername = `other_${Date.now()}`
+
+  await User.create({
+    name: 'Owner User',
+    username: ownerUsername
+  })
+  await User.create({
+    name: 'Other User',
+    username: otherUsername
+  })
+
+  let createdBlogId
+  try {
+    const ownerLogin = await request(app)
+      .post('/api/login')
+      .send({ username: ownerUsername, password: 'secret' })
+    const otherLogin = await request(app)
+      .post('/api/login')
+      .send({ username: otherUsername, password: 'secret' })
+
+    const createResponse = await request(app)
+      .post('/api/blogs')
+      .set('Authorization', `Bearer ${ownerLogin.body.token}`)
+      .send({
+        author: 'Owner',
+        url: 'https://example.com/owned-blog',
+        title: 'Owned blog',
+        likes: 0
+      })
+
+    createdBlogId = createResponse.body.id
+
+    const forbiddenDelete = await request(app)
+      .delete(`/api/blogs/${createdBlogId}`)
+      .set('Authorization', `Bearer ${otherLogin.body.token}`)
+
+    assert.equal(forbiddenDelete.status, 403)
+
+    const ownerDelete = await request(app)
+      .delete(`/api/blogs/${createdBlogId}`)
+      .set('Authorization', `Bearer ${ownerLogin.body.token}`)
+
+    assert.equal(ownerDelete.status, 204)
+    createdBlogId = null
+  } finally {
+    if (createdBlogId) {
+      await Blog.destroy({ where: { id: createdBlogId } })
+    }
+    await User.destroy({ where: { username: ownerUsername } })
+    await User.destroy({ where: { username: otherUsername } })
+  }
+})

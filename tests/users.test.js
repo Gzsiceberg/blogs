@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const request = require('supertest')
 
 const app = require('../index')
-const { connectToDatabase, sequelize, User } = require('../models')
+const { connectToDatabase, sequelize, User, Blog } = require('../models')
 
 test.before(async () => {
   await connectToDatabase()
@@ -63,5 +63,38 @@ test('PUT /api/users/:username updates username and updated_at', async () => {
   } finally {
     await User.destroy({ where: { username: originalUsername } })
     await User.destroy({ where: { username: newUsername } })
+  }
+})
+
+test('GET /api/users includes blogs added by each user', async () => {
+  const unique = Date.now()
+  const username = `with_blog_${unique}`
+  const user = await User.create({
+    name: 'User With Blog',
+    username
+  })
+
+  const blog = await Blog.create({
+    author: 'User With Blog',
+    url: `https://example.com/${unique}`,
+    title: 'Blog from user listing test',
+    likes: 1,
+    userId: user.id
+  })
+
+  try {
+    const response = await request(app).get('/api/users')
+    assert.equal(response.status, 200)
+
+    const fetchedUser = response.body.find((u) => u.id === user.id)
+    assert.ok(fetchedUser)
+    assert.ok(Array.isArray(fetchedUser.blogs))
+
+    const fetchedBlog = fetchedUser.blogs.find((b) => b.id === blog.id)
+    assert.ok(fetchedBlog)
+    assert.equal(fetchedBlog.title, 'Blog from user listing test')
+  } finally {
+    await Blog.destroy({ where: { id: blog.id } })
+    await User.destroy({ where: { id: user.id } })
   }
 })

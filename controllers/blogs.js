@@ -1,7 +1,6 @@
 const blogsRouter = require('express').Router()
-const jwt = require('jsonwebtoken')
 const { Blog, User } = require('../models')
-const { SECRET } = require('../util/config')
+const { verifyToken } = require('../util/token')
 
 blogsRouter.get('/', async (_req, res) => {
   try {
@@ -26,7 +25,7 @@ blogsRouter.post('/', async (req, res, next) => {
   }
 
   try {
-    const decodedToken = jwt.verify(req.token, SECRET)
+    const decodedToken = verifyToken(req.token)
     const user = await User.findByPk(decodedToken.id)
 
     if (!user) {
@@ -71,25 +70,34 @@ blogsRouter.put('/:id', async (req, res, next) => {
   }
 })
 
-blogsRouter.delete('/:id', async (req, res) => {
+blogsRouter.delete('/:id', async (req, res, next) => {
   const id = Number(req.params.id)
 
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ error: 'id must be a positive integer' })
   }
 
-  try {
-    const deletedCount = await Blog.destroy({
-      where: { id }
-    })
+  if (!req.token) {
+    return res.status(401).json({ error: 'token missing' })
+  }
 
-    if (deletedCount === 0) {
+  try {
+    const decodedToken = verifyToken(req.token)
+    const blog = await Blog.findByPk(id)
+
+    if (!blog) {
       return res.status(404).json({ error: 'blog not found' })
     }
 
+    if (blog.userId !== decodedToken.id) {
+      return res.status(403).json({ error: 'only the creator can delete a blog' })
+    }
+
+    await blog.destroy()
+
     res.status(204).end()
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    next(error)
   }
 })
 
