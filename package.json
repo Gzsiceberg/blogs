@@ -7,7 +7,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "node --test",
+    "test": "node --test --test-concurrency=1",
     "dev": "nodemon index.js",
     "lint": "eslint . && node --check index.js && node --check cli.js"
   },

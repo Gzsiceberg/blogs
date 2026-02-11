@@ -2,13 +2,12 @@ const sequelize = require('../util/db')
 const Blog = require('./blog')
 const User = require('./user')
 
-User.hasMany(Blog)
-Blog.belongsTo(User)
+User.hasMany(Blog, { foreignKey: 'userId' })
+Blog.belongsTo(User, { foreignKey: 'userId' })
 
 const connectToDatabase = async () => {
   await sequelize.authenticate()
-  User.sync({ alter: true })
-  Blog.sync({ alter: true })  
+  await sequelize.sync()
 }
 
 module.exports = {
