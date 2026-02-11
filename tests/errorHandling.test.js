@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const request = require('supertest')
 
 const app = require('../index')
-const { connectToDatabase, sequelize, Blog } = require('../models')
+const { connectToDatabase, sequelize, Blog, User } = require('../models')
 
 test.before(async () => {
   await connectToDatabase()
@@ -14,17 +14,38 @@ test.after(async () => {
 })
 
 test('POST /api/blogs returns 400 via error middleware for invalid url', async () => {
-  const response = await request(app)
-    .post('/api/blogs')
-    .send({
-      author: 'Test Author',
-      url: '   ',
-      title: 'Valid title',
-      likes: 0
-    })
+  const unique = Date.now()
+  const username = `blog_error_user_${unique}`
+  await User.create({
+    name: 'Blog Error User',
+    username
+  })
 
-  assert.equal(response.status, 400)
-  assert.match(response.body.error, /url/i)
+  try {
+    const loginResponse = await request(app)
+      .post('/api/login')
+      .send({
+        username,
+        password: 'secret'
+      })
+
+    const token = loginResponse.body.token
+
+    const response = await request(app)
+      .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        author: 'Test Author',
+        url: '   ',
+        title: 'Valid title',
+        likes: 0
+      })
+
+    assert.equal(response.status, 400)
+    assert.match(response.body.error, /url/i)
+  } finally {
+    await User.destroy({ where: { username } })
+  }
 })
 
 test('PUT /api/blogs/:id returns 400 via error middleware for invalid likes', async () => {

@@ -1,9 +1,15 @@
 const blogsRouter = require('express').Router()
-const { Blog } = require('../models')
+const jwt = require('jsonwebtoken')
+const { Blog, User } = require('../models')
+const { SECRET } = require('../util/config')
 
 blogsRouter.get('/', async (_req, res) => {
   try {
     const blogs = await Blog.findAll({
+      include: {
+        model: User,
+        attributes: ['id', 'username', 'name']
+      },
       order: [['id', 'ASC']]
     })
     res.json(blogs)
@@ -15,12 +21,24 @@ blogsRouter.get('/', async (_req, res) => {
 blogsRouter.post('/', async (req, res, next) => {
   const { author = null, url, title, likes = 0 } = req.body
 
+  if (!req.token) {
+    return res.status(401).json({ error: 'token missing' })
+  }
+
   try {
+    const decodedToken = jwt.verify(req.token, SECRET)
+    const user = await User.findByPk(decodedToken.id)
+
+    if (!user) {
+      return res.status(401).json({ error: 'user not found' })
+    }
+
     const createdBlog = await Blog.create({
       author: author || null,
       url,
       title,
-      likes
+      likes,
+      userId: user.id
     })
 
     res.status(201).json(createdBlog)

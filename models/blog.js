@@ -46,6 +46,11 @@ Blog.init(
         isInt: true,
         min: 0
       }
+    },
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'user_id'
     }
   },
   {
