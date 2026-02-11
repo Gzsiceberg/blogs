@@ -1,5 +1,5 @@
 const usersRouter = require('express').Router()
-const { User, Blog, ReadingList } = require('../models')
+const { User, Blog } = require('../models')
 
 usersRouter.post('/', async (req, res, next) => {
   const { name, username } = req.body
@@ -79,47 +79,29 @@ usersRouter.get('/:id', async (req, res, next) => {
 
   try {
     const user = await User.findByPk(id, {
-      include: {
-        model: Blog,
-        attributes: ['id', 'author', 'url', 'title', 'likes', 'year']
-      }
+      include: [
+        {
+          model: Blog,
+          attributes: ['id', 'author', 'url', 'title', 'likes', 'year']
+        },
+        {
+          model: Blog,
+          as: 'readings',
+          attributes: ['id', 'url', 'title', 'author', 'likes', 'year'],
+          through: {
+            attributes: ['id', 'read'],
+            ...(readFilter !== undefined ? { where: { read: readFilter } } : {})
+          }
+        }
+      ]
     })
 
     if (!user) {
       return res.status(404).json({ error: 'user not found' })
     }
 
-    const readingWhere = { userId: id }
-    if (readFilter !== undefined) {
-      readingWhere.read = readFilter
-    }
-
-    const readingEntries = await ReadingList.findAll({
-      where: readingWhere,
-      include: {
-        model: Blog,
-        attributes: ['id', 'url', 'title', 'author', 'likes', 'year']
-      },
-      order: [['id', 'ASC']]
-    })
-
-    const readings = readingEntries
-      .filter((entry) => entry.blog)
-      .map((entry) => ({
-        ...entry.blog.toJSON(),
-        readinglists: [
-          {
-            read: entry.read,
-            id: entry.id
-          }
-        ]
-      }))
-
     const userJson = user.toJSON()
-    return res.json({
-      ...userJson,
-      readings
-    })
+    return res.json(userJson)
   } catch (error) {
     return next(error)
   }

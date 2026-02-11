@@ -1,4 +1,4 @@
-const { connectToDatabase, sequelize, User, Blog } = require('./models')
+const { connectToDatabase, sequelize, User, Blog, ReadingList } = require('./models')
 
 const seed = async () => {
   await connectToDatabase()
@@ -32,13 +32,38 @@ const seed = async () => {
     }
   ]
 
+  const createdBlogs = []
   for (const blogData of blogSeeds) {
-    await Blog.findOrCreate({
+    const [blog] = await Blog.findOrCreate({
       where: { url: blogData.url },
       defaults: {
         ...blogData,
         userId: user.id
       }
+    })
+    createdBlogs.push(blog)
+  }
+
+  const [reader] = await User.findOrCreate({
+    where: { username: 'reader_user' },
+    defaults: {
+      name: 'Reader User',
+      username: 'reader_user'
+    }
+  })
+
+  const readingListSeeds = [
+    { blogId: createdBlogs[0].id, userId: reader.id, read: false },
+    { blogId: createdBlogs[1].id, userId: reader.id, read: true }
+  ]
+
+  for (const readingData of readingListSeeds) {
+    await ReadingList.findOrCreate({
+      where: {
+        blogId: readingData.blogId,
+        userId: readingData.userId
+      },
+      defaults: readingData
     })
   }
 
